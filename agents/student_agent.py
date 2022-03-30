@@ -23,6 +23,10 @@ class StudentAgent(Agent):
             "l": 3,
         }
 
+    def valid_move(cur_pos, x, y, dir, max_x, max_y):
+        #Check for Board Dimension & Blockage
+        return (0 <= x < max_x and 0 <= y < max_y and not dir.barrier)
+
     def step(self, chess_board, my_pos, adv_pos, max_step):
         """
         Implement the step function of your agent here.
@@ -38,6 +42,8 @@ class StudentAgent(Agent):
 
         Please check the sample implementation in agents/random_agent.py or agents/human_agent.py for more details.
         """
+        init_pos = my_pos
+
         # dummy return
         return my_pos, self.dir_map["u"]
 
