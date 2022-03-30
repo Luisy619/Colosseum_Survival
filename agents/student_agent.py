@@ -5,50 +5,10 @@ from store import register_agent
 import math;
 
 import sys
+# from memory_profiler import profile;
+import tracemalloc;
 
-
-@register_agent("student_agent")
-class StudentAgent(Agent):
-    """
-    A dummy class for your implementation. Feel free to use this class to
-    add any helper functionalities needed for your agent.
-    """
-
-    def __init__(self):
-        super(StudentAgent, self).__init__()
-        self.name = "StudentAgent"
-        self.dir_map = {
-            "u": 0,
-            "r": 1,
-            "d": 2,
-            "l": 3,
-        }
-
-    def valid_move(cur_pos, x, y, dir, max_x, max_y):
-        #Check for Board Dimension & Blockage
-        return (0 <= x < max_x and 0 <= y < max_y and not dir.barrier)
-
-    def step(self, chess_board, my_pos, adv_pos, max_step):
-        """
-        Implement the step function of your agent here.
-        You can use the following variables to access the chess board:
-        - chess_board: a numpy array of shape (x_max, y_max, 4)
-        - my_pos: a tuple of (x, y)
-        - adv_pos: a tuple of (x, y)
-        - max_step: an integer
-
-        You should return a tuple of ((x, y), dir),
-        where (x, y) is the next position of your agent and dir is the direction of the wall
-        you want to put on.
-
-        Please check the sample implementation in agents/random_agent.py or agents/human_agent.py for more details.
-        """
-        init_pos = my_pos
-
-        # dummy return
-        return my_pos, self.dir_map["u"]
-
-    class BoardState:
+class BoardState:
         def __init__(self, chess_board, my_pos, adv_pos, max_step):
             self.board = chess_board;
             self.myPosition = my_pos;
@@ -73,95 +33,145 @@ class StudentAgent(Agent):
             self.advPosition = adv_pos;
             self.maxStep = max_step;
 
+class MCTSNode:
+    def __init__(self):
+        self.nodeState = None;
+        self.parent = None;
+        self.childList = [];
 
-    class MCTSNode:
-        def __init__(self):
-            self.nodeState = None;
-            self.parent = None;
-            self.childList = [];
+    def setParent(self, parent):
+        self.parent = parent;
 
-        def setParent(self, parent):
-            self.parent = parent;
-
-        def getParent(self):
-            return self.parent;
-        
-        def setState(self, state):
-            self.state = state;
-
-        def getState(self):
-            return self.state;
-        
-        def addChildNode(self, child):
-            self.childList.append(child);
-
-        def getChildren(self):
-            return self.childList;
-
-        def getRandomChild(self):
-            # Get a random child from the list ***
-            return None;
-
-        def getMaxScoreChild(self):
-            # Get the child with the highest 'visitCount' (I think. Review and get max number according to tree policy) ***
-            return None;
-
-    class MCTSTree:
-        def __init__(self):
-            self.root = None;
+    def getParent(self):
+        return self.parent;
     
-        def setRoot(self, node):
-            self.root = node;
+    def setState(self, state):
+        self.state = state;
 
-        def getRoot(self):
-            return self.root;
-
-        def addChild(self, parentNode, childNode): # Why the !@#% is this undefined???
-            parentNode.addChildNode(childNode);
+    def getState(self):
+        return self.state;
     
-    class State:
-        
-        def __init__(self, boardState):
-            self.boardState = boardState
-            self.visitCount = 0;
-            self.winScore = 0;
+    def addChildNode(self, child):
+        self.childList.append(child);
 
-        def getVisitCount(self):
-            return self.visitCount;
+    def getChildren(self):
+        return self.childList;
 
-        def setVisitCount(self, newCount):
-            self.visitCount = newCount;
+    def getRandomChild(self):
+        # Get a random child from the list ***
+        return None;
 
-        def incrementVisit(self):
-            self.visitCount = self.visitCount + 1;
+    def getMaxScoreChild(self):
+        # Get the child with the highest 'visitCount' (I think. Review and get max number according to tree policy) ***
+        return None;
 
-        def getWinScore(self):
-            return self.winScore;
+class MCTSTree:
+    def __init__(self):
+        self.root = None;
 
-        def setWinScore(self, newScore):
-            self.winScore = newScore;
+    def setRoot(self, node):
+        self.root = node;
 
-        def addWinScore(self, scoreToAdd):
-            self.winScore = self.winScore + scoreToAdd;
+    def getRoot(self):
+        return self.root;
 
-        def getAllStates(self):
-            # Get all possible moves, and return them in a list of States ***
-            return None;
+    def addChild(self, parentNode, childNode): # Why the !@#% is this undefined???
+        parentNode.addChildNode(childNode);
 
-        def randomMove(self):
-            # Uses BoardState to figure out a random move.
-            return None;
+class State:
+    
+    def __init__(self, boardState):
+        self.boardState = boardState
+        self.visitCount = 0;
+        self.winScore = 0;
 
-    class UCT:
-        def findBestUCTNode(node):
-            parentVisitCount = node.getState().visitCount();
-            # Foreach child in node.getChildArray, get the one with the highest UCTValue(parentVisitCount, childNode.getState().getWinScore(), childNode.getState().getVisitCount()) ***
-            return None;
+    def getVisitCount(self):
+        return self.visitCount;
 
-        def UCTValue(totalVisits, winScore, visitCountNode): #Double check in general ***
-            if(visitCountNode == 0):
-                return 9999; #Maybe double check if we can use INTEGER_MAXVAL or something instead.
-            return (winScore / visitCountNode) + 1.41 * math.sqrt(math.log(totalVisits) /  visitCountNode) #Check that this isnt integer division - would cause unpredictable behavior. ***
+    def setVisitCount(self, newCount):
+        self.visitCount = newCount;
+
+    def incrementVisit(self):
+        self.visitCount = self.visitCount + 1;
+
+    def getWinScore(self):
+        return self.winScore;
+
+    def setWinScore(self, newScore):
+        self.winScore = newScore;
+
+    def addWinScore(self, scoreToAdd):
+        self.winScore = self.winScore + scoreToAdd;
+
+    def getAllStates(self):
+        # Get all possible moves, and return them in a list of States ***
+        return None;
+
+    def randomMove(self):
+        # Uses BoardState to figure out a random move.
+        return None;
+
+class UCT:
+    def findBestUCTNode(node):
+        parentVisitCount = node.getState().visitCount();
+        # Foreach child in node.getChildArray, get the one with the highest UCTValue(parentVisitCount, childNode.getState().getWinScore(), childNode.getState().getVisitCount()) ***
+        return None;
+
+    def UCTValue(totalVisits, winScore, visitCountNode): #Double check in general ***
+        if(visitCountNode == 0):
+            return 9999; #Maybe double check if we can use INTEGER_MAXVAL or something instead.
+        return (winScore / visitCountNode) + 1.41 * math.sqrt(math.log(totalVisits) /  visitCountNode) #Check that this isnt integer division - would cause unpredictable behavior. ***
+
+@register_agent("student_agent")
+class StudentAgent(Agent):
+    """
+    A dummy class for your implementation. Feel free to use this class to
+    add any helper functionalities needed for your agent.
+    """
+
+    def __init__(self):
+        super(StudentAgent, self).__init__()
+        self.name = "StudentAgent"
+        self.dir_map = {
+            "u": 0,
+            "r": 1,
+            "d": 2,
+            "l": 3,
+        }
+
+    def valid_move(cur_pos, x, y, dir, max_x, max_y):
+        #Check for Board Dimension & Blockage
+        return (0 <= x < max_x and 0 <= y < max_y and not dir.barrier)
+
+    #@profile
+    def step(self, chess_board, my_pos, adv_pos, max_step):
+        tracemalloc.start();
+        """
+        Implement the step function of your agent here.
+        You can use the following variables to access the chess board:
+        - chess_board: a numpy array of shape (x_max, y_max, 4)
+        - my_pos: a tuple of (x, y)
+        - adv_pos: a tuple of (x, y)
+        - max_step: an integer
+
+        You should return a tuple of ((x, y), dir),
+        where (x, y) is the next position of your agent and dir is the direction of the wall
+        you want to put on.
+
+        Please check the sample implementation in agents/random_agent.py or agents/human_agent.py for more details.
+        """
+        init_pos = my_pos
+        stateList = [];
+        for x in range(10000):
+            copiedState = BoardState(chess_board, my_pos, adv_pos, x)
+            stateList.append(copiedState);
+
+        print(tracemalloc.get_traced_memory());
+        tracemalloc.stop();
+        # dummy return
+        return my_pos, self.dir_map["u"]
+
+
 
         
 # ==== GENERAL ====
