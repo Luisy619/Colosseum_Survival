@@ -116,7 +116,7 @@ class StudentAgent(Agent):
         def getRoot(self):
             return self.root;
 
-        def addChild(self, parentNode: MCTSNode, childNode: MCTSNode):
+        def addChild(self, parentNode, childNode): # Why the !@#% is this undefined???
             parentNode.addChildNode(childNode);
     
     class State:
@@ -164,17 +164,6 @@ class StudentAgent(Agent):
             return (winScore / visitCountNode) + 1.41 * math.sqrt(math.log(totalVisits) /  visitCountNode) #Check that this isnt integer division - would cause unpredictable behavior. ***
 
         
-
-        
-
-
-           
-
-        
-
-
-
-
 # ==== GENERAL ====
 # - Has a time limit - can't run for too long, so "pure" Minimax is likely unusable.
 # - Should first figure out what the branching factor (b), max tree depth (m) , etc... are.
