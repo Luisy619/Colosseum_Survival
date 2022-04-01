@@ -3,6 +3,7 @@
 from agents.agent import Agent
 from store import register_agent
 import math;
+import time;
 
 import sys
 # from memory_profiler import profile;
@@ -161,13 +162,17 @@ class StudentAgent(Agent):
         Please check the sample implementation in agents/random_agent.py or agents/human_agent.py for more details.
         """
         init_pos = my_pos
+        timelimit = 1750; # Tried 2000ms (2s) but results came out 2.3s so this seems to be about as high as we can safely go.
+        startTime = time.time() * 1000;
         stateList = [];
-        for x in range(10000):
-            copiedState = BoardState(chess_board, my_pos, adv_pos, x)
+
+        while((time.time() * 1000) < startTime + timelimit):
+            copiedState = BoardState(chess_board, my_pos, adv_pos, 2);
             stateList.append(copiedState);
 
         print(tracemalloc.get_traced_memory());
         tracemalloc.stop();
+        print((time.time() * 1000) - startTime);
         # dummy return
         return my_pos, self.dir_map["u"]
 
