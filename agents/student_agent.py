@@ -4,6 +4,7 @@ from agents.agent import Agent
 from store import register_agent
 import math;
 import time;
+import random;
 
 import sys
 # from memory_profiler import profile;
@@ -59,31 +60,33 @@ class MCTSNode:
         return self.childList;
 
     def getRandomChild(self):
-        # Get a random child from the list ***
-        return None;
+        # Get a random child from the list 
+        if(self.childList == []): #Double check that this is sufficient for verifying empty list.
+            return None;
+        return random.choice(self.childList);
 
     def getMaxScoreChild(self):
         # Get the child with the highest 'visitCount' (I think. Review and get max number according to tree policy) ***
         return None;
 
 class MCTSTree:
-    def __init__(self):
-        self.root = None;
+    def __init__(self, node: MCTSNode):
+        self.root = node;
 
-    def setRoot(self, node):
+    def setRoot(self, node: MCTSNode):
         self.root = node;
 
     def getRoot(self):
         return self.root;
 
-    def addChild(self, parentNode, childNode): # Why the !@#% is this undefined???
+    def addChild(self, parentNode: MCTSNode, childNode: MCTSNode):
         parentNode.addChildNode(childNode);
 
 class State:
     
     def __init__(self, boardState):
         self.boardState = boardState
-        self.visitCount = 0;
+        self.visitCount = 0; #Could put these two in 'Node' Instead, and have just a 'board state'
         self.winScore = 0;
 
     def getVisitCount(self):
@@ -105,23 +108,24 @@ class State:
         self.winScore = self.winScore + scoreToAdd;
 
     def getAllStates(self):
-        # Get all possible moves, and return them in a list of States ***
+        # Get all possible moves, and return them in a list of States. *** This might end up being very expensive. Edit to be a subset of states if need be.
         return None;
 
     def randomMove(self):
-        # Uses BoardState to figure out a random move.
+        # Uses BoardState to figure out a random move. Can likely snag random agent code to do this!
         return None;
 
+# Probably doesn't need to be its own class.
 class UCT:
     def findBestUCTNode(node):
         parentVisitCount = node.getState().visitCount();
         # Foreach child in node.getChildArray, get the one with the highest UCTValue(parentVisitCount, childNode.getState().getWinScore(), childNode.getState().getVisitCount()) ***
         return None;
 
-    def UCTValue(totalVisits, winScore, visitCountNode): #Double check in general ***
+    def UCTValue(totalVisits, winScore, visitCountNode): 
         if(visitCountNode == 0):
             return 9999; #Maybe double check if we can use INTEGER_MAXVAL or something instead.
-        return (winScore / visitCountNode) + 1.41 * math.sqrt(math.log(totalVisits) /  visitCountNode) #Check that this isnt integer division - would cause unpredictable behavior. ***
+        return (winScore / visitCountNode) + 1.41 * math.sqrt(math.log(totalVisits) /  visitCountNode) #Check that this isnt integer division - would cause unpredictable behavior. Also the 'c' value (1.41) can be tuned. ***
 
 @register_agent("student_agent")
 class StudentAgent(Agent):
@@ -166,9 +170,22 @@ class StudentAgent(Agent):
         startTime = time.time() * 1000;
         stateList = [];
 
+        targetLevel = 2;
+
+
         while((time.time() * 1000) < startTime + timelimit):
+            #These two lines only here for speed/memory testings
             copiedState = BoardState(chess_board, my_pos, adv_pos, 2);
             stateList.append(copiedState);
+
+            # Need to think about how functions for these will look like...
+            # Step 1: Select a promising node (should be a root at the start)
+
+            # Step 2: Expand the node
+
+            # Step 3: Simulate random game
+
+            # Step 4: Backpropagation 
 
         print(tracemalloc.get_traced_memory());
         tracemalloc.stop();
