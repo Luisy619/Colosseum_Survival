@@ -1,5 +1,6 @@
 # Student agent: Add your own agent here
 # AlphaCS
+from tkinter import N
 from agents.agent import Agent
 from store import register_agent
 import math;
@@ -42,6 +43,7 @@ class BoardState:
             self.advPosition = adv_pos;
             self.maxStep = max_step;
 
+        #Definitely not done (lol). Need to make it so that it will alternate between 'myPosition' and 'advPosition' (add fields to BoardState), and need to actually put the changes on the board (instead of jut calculating the position)
         def simulateRandomAction(self):
             steps = np.random.randint(0, self.maxStep + 1)
             ori_pos = deepcopy(self.myPosition)
@@ -72,6 +74,8 @@ class BoardState:
             while self.board[r, c, dir]:
                 dir = np.random.randint(0, 4)
             
+            # Here, still need to then change the board according to the move. See "set_barrier" function?
+
             return None; # This function is used when computing random states - we don't need to save anything.
 
         # Similar to the 'check_endgame()' function from world.py. Returns the amt of points the player has won (0 for loss, 0.5 for tie, 1 for win) or a -1 if it is not the terminal state.
@@ -173,8 +177,12 @@ class MCTSNode:
     def addwinCount(self, scoreToAdd):
         self.winCount = self.winCount + scoreToAdd;
 
-    def getAllStates(self):
-        # Get all possible moves, and return them in a list of States. *** This might end up being very expensive. Edit to be a subset of states if need be.
+    #Returns true if this node is a leaf (i.e. it has an empty child list)
+    def isLeaf(self):
+        return (len(self.childList) == 0);
+
+    def expandNode(self):
+        # Get all possible states, and add them to this node's childList. *** This might end up being very expensive. Edit to be a subset of state (instead of all of them) if need be.
         return None;
 
     def randomMove(self):
@@ -196,8 +204,8 @@ class MCTSNode:
 #         # Uses BoardState to figure out a random move. Can likely snag random agent code to do this!
 #         return None;
 
-# Probably doesn't need to be its own class.
 class UCT:
+
     def findBestUCTNode(node):
         parentVisitCount = node.getState().visitCount();
         # Foreach child in node.getChildArray, get the one with the highest UCTValue(parentVisitCount, childNode.getState().getwinCount(), childNode.getState().getVisitCount()) ***
@@ -250,26 +258,30 @@ class StudentAgent(Agent):
         timelimit = 1750; # Tried 2000ms (2s) but results came out 2.3s so this seems to be about as high as we can safely go.
         startTime = time.time() * 1000;
         stateList = [];
-        test = BoardState(chess_board, my_pos, adv_pos, max_step);
-        print(test.endCheck());
         # *** Create a node based on the passed in state, make it the root of the tree
+        rootNode = MCTSNode();
+        initialState = BoardState(chess_board, my_pos, adv_pos, max_step);
+        rootNode.setState(initialState);
+        curNode = rootNode;
+        uctHelper = UCT();
+        #result = self.randomSimulation(deepcopy(curNode.state)); 
+        #print(result);
+        
+        # while((time.time() * 1000) < startTime + timelimit):
+        #     #These two lines only here for speed/memory tests
+        #     copiedState = BoardState(chess_board, my_pos, adv_pos, max_step);
+        #     stateList.append(copiedState);
 
-        while((time.time() * 1000) < startTime + timelimit):
-            #These two lines only here for speed/memory testings
-            copiedState = BoardState(chess_board, my_pos, adv_pos, max_step);
-            stateList.append(copiedState);
-            # curNode = MCTSNode();
-            # initialState = BoardState(chess_board, my_pos, adv_pos, max_step);
-            # curNode.setState(initialState);
-            #node = root_node;
-            # Step 1: Select a promising node (should be a root at the start)
-            # while node is not a leaf
-            #   n = select_UCB_node(n)
-            # Step 2: Expand the node   
-            # n.expand_node()
-            # n = select_UCB_node(n)
+        #     # Step 1: Select a promising node (should be the root at the start)
+        #     while (not curNode.isLeaf()):
+        #         curNode = uctHelper.findBestUCTNode(curNode);
+            
+        #     # Step 2: Expand the node   
+        #     curNode.expandNode();
+        #     curNode = uctHelper.findBestUCTNode(curNode);
+
             # Step 3: Simulate random game
-            # result = randomSimulation(deepcopy(n.state));
+            # result = self.randomSimulation(deepcopy(curNode.state)); #Will probably infinitely loop for now.
             # Step 4: Backpropagation 
             # while n.has_parent()
             #   n.update(result)
@@ -283,13 +295,12 @@ class StudentAgent(Agent):
         return my_pos, self.dir_map["u"]
     
     def randomSimulation(self, state:BoardState):
-        while(1):
+        while(True):
             result = state.endCheck()
             if(result == -1):
                 # This is not the end, need to do another random move.
                 state.simulateRandomAction();
-                return -1; #remove later.
-                
+                continue;
             else:
                 return result;
 
@@ -299,13 +310,13 @@ CHECKLIST:
 - Need function to get possible moves (node expansion) 
 - Need a function to properly select a UCT node
 - Need to setup initial tree structure in step(), and should also reorganize helper classes
-- Need a function to check that a given state in the tree is a leaf
-- Need a function to evaluate a node's value given a state.
 - Need a function to update a node's value (backpropagation)
+- Need a function to select a random move and play it on a state (as fast as possible!) - Partially done. Calculates a random move, but need to alternate between player turns + actually put the changes on the board.
 
 - Need a function that will continually do random moves until the end (a random rollout/simulation) - DONE!
-- Need a function to select a random move and play it on a state (as fast as possible!) - DONE!
 - Need a function to check that a state is terminal (can likely steal from world.py) - DONE!
+- Need a function to evaluate a node's value given a state. - DONE! (review it tho)
+- Need a function to check that a given state in the tree is a leaf - DONE!
 
 MCTS:
 - Need a way to do several random simulations
