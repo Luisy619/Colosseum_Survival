@@ -5,6 +5,8 @@ from store import register_agent
 import math;
 import time;
 import random;
+import numpy as np;
+from copy import deepcopy;
 
 import sys
 # from memory_profiler import profile;
@@ -12,7 +14,7 @@ import tracemalloc;
 
 class BoardState:
         def __init__(self, chess_board, my_pos, adv_pos, max_step):
-            self.board = chess_board;
+            self.board = deepcopy(chess_board); #Deepcopy may not be needed? ***
             self.myPosition = my_pos;
             self.advPosition = adv_pos;
             self.maxStep = max_step;
@@ -39,6 +41,38 @@ class BoardState:
             self.myPosition = my_pos;
             self.advPosition = adv_pos;
             self.maxStep = max_step;
+
+        def simulateRandomAction(self):
+            steps = np.random.randint(0, self.maxStep + 1)
+            ori_pos = deepcopy(self.myPosition)
+            # Random Walk
+            for _ in range(steps):
+                r, c = self.myPosition;
+                dir = np.random.randint(0, 4)
+                m_r, m_c = self.moves[dir]
+                self.myPosition = (r + m_r, c + m_c)
+
+                # Special Case enclosed by Adversary
+                k = 0
+                while self.board[r, c, dir] or self.myPosition == self.advPosition:
+                    k += 1
+                    if k > 300:
+                        break
+                    dir = np.random.randint(0, 4)
+                    m_r, m_c = self.moves[dir]
+                    self.myPosition = (r + m_r, c + m_c)
+
+                if k > 50: #Was 300, but want to be fast. Tune this later and see the effect ***
+                    self.myPosition = ori_pos
+                    break
+
+            # Put Barrier
+            dir = np.random.randint(0, 4)
+            r, c = self.myPosition
+            while self.board[r, c, dir]:
+                dir = np.random.randint(0, 4)
+            
+            return None; # This function is used when computing random states - we don't need to save anything.
 
         # Similar to the 'check_endgame()' function from world.py. Returns the amt of points the player has won (0 for loss, 0.5 for tie, 1 for win) or a -1 if it is not the terminal state.
         def endCheck(self):
@@ -235,9 +269,7 @@ class StudentAgent(Agent):
             # n.expand_node()
             # n = select_UCB_node(n)
             # Step 3: Simulate random game
-            # while not terminal(n.state)
-            #   n.state.simulate() # or just call a function to do it all in one shot
-            # result = n.state.evaluate()
+            # result = randomSimulation(deepcopy(n.state));
             # Step 4: Backpropagation 
             # while n.has_parent()
             #   n.update(result)
@@ -249,21 +281,34 @@ class StudentAgent(Agent):
         # dummy return
         #return tree.best_move()
         return my_pos, self.dir_map["u"]
+    
+    def randomSimulation(self, state:BoardState):
+        while(1):
+            result = state.endCheck()
+            if(result == -1):
+                # This is not the end, need to do another random move.
+                state.simulateRandomAction();
+                return -1; #remove later.
+                
+            else:
+                return result;
 
 
 """
 CHECKLIST:
-- Need a function to check that a state is terminal (can likely steal from world.py) - DONE!
-- Need function to get possible moves (node expansion)
-- Need a function to simulate random moves until the end
+- Need function to get possible moves (node expansion) 
 - Need a function to properly select a UCT node
 - Need to setup initial tree structure in step(), and should also reorganize helper classes
 - Need a function to check that a given state in the tree is a leaf
 - Need a function to evaluate a node's value given a state.
 - Need a function to update a node's value (backpropagation)
 
+- Need a function that will continually do random moves until the end (a random rollout/simulation) - DONE!
+- Need a function to select a random move and play it on a state (as fast as possible!) - DONE!
+- Need a function to check that a state is terminal (can likely steal from world.py) - DONE!
+
 MCTS:
 - Need a way to do several random simulations
-- Need a tree policy and a leaf/default policy (Look-Ahead Tree)
+- Need a tree policy (UCT) and a leaf/default policy (Look-Ahead Tree, will likely be random)
   Q*(s,a,h) = E[R(s,a) + βV*(T(s,a),h-1)]
 """
