@@ -181,6 +181,9 @@ class MCTSNode:
 
     def getParent(self):
         return self.parent;
+
+    def hasParent(self):
+        return self.parent != None;
     
     def setState(self, state: BoardState):
         self.state = state;
@@ -226,12 +229,13 @@ class MCTSNode:
     def isLeaf(self):
         return (len(self.childList) == 0);
 
-    def expandNode(self):
-        # Get all possible states, and add them to this node's childList. *** This might end up being very expensive. Edit to be a subset of state (instead of all of them) if need be.
-        return None;
+    def update(self, result):
+        # Maybe revisit this later, but I think it's fine.
+        self.visitCount += 1;
+        self.winCount += result;
 
-    def randomMove(self):
-        # Uses BoardState to figure out a random move. Can likely snag random agent code to do this!
+    def expandNode(self):
+        # Get all possible states, and add them to this node's childList. *** This will likely be too expensive. Edit to be a subset of states (proportional to max_step).
         return None;
 
 # class State:
@@ -251,15 +255,27 @@ class MCTSNode:
 
 class UCT:
 
-    def findBestUCTNode(node):
-        parentVisitCount = node.getState().visitCount();
+    def findBestUCTNode(node: MCTSNode, totalRootVisits: int):
         # Foreach child in node.getChildArray, get the one with the highest UCTValue(parentVisitCount, childNode.getState().getwinCount(), childNode.getState().getVisitCount()) ***
-        return None;
+        highest = None;
+        highestVal = -1;
+        for child in node.getChildren():
+            if(highest == None):
+                highest = child;
+                highestVal = 9999;
+            
+            childVal = UCT.UCTValue(child.getTotalVisits(), child.getWinCount(), totalRootVisits)
+            if(childVal >= highestVal):
+                highest = child;
+                highestVal = childVal;
 
-    def UCTValue(totalVisits, winCount, visitCountNode): 
-        if(visitCountNode == 0):
-            return 9999; #Maybe double check if we can use INTEGER_MAXVAL or something instead.
-        return (winCount / visitCountNode) + 1.41 * math.sqrt(math.log(totalVisits) /  visitCountNode) #Check that this isnt integer division - would cause unpredictable behavior. Also the 'c' value (1.41) can be tuned. ***
+        return highest;
+
+    # Should be (winScore / numberOfVisits) + C * sqrt(log(total root node visits) / numberOfVisits)
+    def UCTValue(totalVisits, winCount, rootTotalVisits): 
+        if(totalVisits == 0):
+            return 9999; #Maybe double check if we can use INTEGER_MAXVAL or something instead, but this should work.
+        return (winCount / totalVisits) + 1.41 * math.sqrt(math.log(rootTotalVisits) /  totalVisits) #The 'c' value (1.41) can and should be tuned later. ***
 
 @register_agent("student_agent")
 class StudentAgent(Agent):
@@ -307,8 +323,8 @@ class StudentAgent(Agent):
         rootNode = MCTSNode();
         initialState = BoardState(chess_board, tuple(my_pos), tuple(adv_pos), max_step, True);
         rootNode.setState(deepcopy(initialState));
+        totalRootVisits = 0; #Maybe change to 1?
         curNode = rootNode;
-        uctHelper = UCT();
         result = self.randomSimulation(curNode.getState()); 
         print(result);
         
@@ -317,20 +333,22 @@ class StudentAgent(Agent):
         #     copiedState = BoardState(chess_board, my_pos, adv_pos, max_step);
         #     stateList.append(copiedState);
 
-        #     # Step 1: Select a promising node (should be the root at the start)
+        #     ## Step 1: Select a promising node (should be the root at the start)
         #     while (not curNode.isLeaf()):
-        #         curNode = uctHelper.findBestUCTNode(curNode);
+                # curNode = UCT.findBestUCTNode(curNode, totalRootVisits); # What if this returns 'None'?
             
-        #     # Step 2: Expand the node   
+        #     ## Step 2: Expand the node   
         #     curNode.expandNode();
-        #     curNode = uctHelper.findBestUCTNode(curNode);
+        #     curNode = UCT.findBestUCTNode(curNode, totalRootVisits);
 
-            # Step 3: Simulate random game
-            # result = self.randomSimulation(deepcopy(curNode.state)); #Will probably infinitely loop for now.
-            # Step 4: Backpropagation 
-            # while n.has_parent()
-            #   n.update(result)
-            #   n = n.parent()
+        #     ##Step 3: Simulate random game
+        #     result = self.randomSimulation(deepcopy(curNode.getState())); #Will probably infinitely loop for now.
+        #     ##Step 4: Backpropagation 
+        #     while curNode.hasParent():
+        #       curNode.update(result)
+        #       curNode = curNode.getParent()
+        #       if(not curNode.hasParent()):
+        #           totalRootVisits += 1;
 
         print(tracemalloc.get_traced_memory());
         tracemalloc.stop();
@@ -358,10 +376,10 @@ class StudentAgent(Agent):
 """
 CHECKLIST:
 - Need function to get possible moves (node expansion) 
-- Need a function to properly select a UCT node
-- Need a function to update a node's value (backpropagation)
-- Need a function to select a random move and play it on a state (as fast as possible!) - Partially done. Calculates a random move, but need to alternate between player turns + actually putting the changes on the board.
 
+- Need a function to properly select a UCT node - DONE! (almost certainly needs testing though)
+- Need a function to update a node's value (backpropagation) - DONE!
+- Need a function to select a random move and play it on a state (as fast as possible!) - DONE!
 - Need a function that will continually do random moves until the end (a random rollout/simulation) - DONE!
 - Need a function to check that a state is terminal (can likely steal from world.py) - DONE!
 - Need a function to evaluate a node's value given a state. - DONE! (review it tho)
