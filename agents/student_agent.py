@@ -21,6 +21,7 @@ class BoardState:
             self.maxStep = max_step;
             self.board_size = len(chess_board); # The 'M' value of the board.
             self.moves = ((-1, 0), (0, 1), (1, 0), (0, -1));
+            self.opposites = {0: 2, 1: 3, 2: 0, 3: 1}
             self.myTurn = myTurn; # true if it is this agent's turn, false otherwise
 
         def getBoard(self):
@@ -81,6 +82,8 @@ class BoardState:
                 
                 self.myTurn = False;
                 self.board[r, c, dir] = True;
+                move = self.moves[dir]
+                self.board[r + move[0], c + move[1], self.opposites[dir]] = True
             else:
                 steps = np.random.randint(0, self.maxStep + 1)
                 ori_pos = deepcopy(self.advPosition)
@@ -115,6 +118,8 @@ class BoardState:
                    #print("Barrier repeat adv")
                 self.myTurn = True;
                 self.board[r, c, dir] = True;
+                move = self.moves[dir]
+                self.board[r + move[0], c + move[1], self.opposites[dir]] = True
                 
             return None; # This function is used when computing random states - we don't need to save or return anything.
 
