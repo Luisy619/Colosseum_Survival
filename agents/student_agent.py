@@ -15,7 +15,7 @@ import tracemalloc;
 
 class BoardState:
         def __init__(self, chess_board, my_pos, adv_pos, max_step, myTurn):
-            self.board = deepcopy(chess_board); #Deepcopy may not be needed? ***
+            self.board = chess_board; #Deepcopy may not be needed? ***
             self.myPosition = my_pos;
             self.advPosition = adv_pos;
             self.maxStep = max_step;
@@ -74,10 +74,7 @@ class BoardState:
                 # Put Barrier
                 dir = np.random.randint(0, 4)
                 r, c = self.myPosition
-                print(self.board[r,c, 0]);
-                print(self.board[r,c,1]);
-                print(self.board[r,c,2]);
-                print(self.board[r,c,3]);
+                print("my");
                 while self.board[r, c, dir]:
                     dir = np.random.randint(0, 4)
                     #print("Barrier repeat my")
@@ -112,6 +109,7 @@ class BoardState:
                 # Put Barrier
                 dir = np.random.randint(0, 4)
                 r, c = self.advPosition
+                print("adv");
                 while self.board[r, c, dir]:
                     dir = np.random.randint(0, 4)
                    #print("Barrier repeat adv")
@@ -303,10 +301,10 @@ class StudentAgent(Agent):
         # *** Create a node based on the passed in state, make it the root of the tree
         rootNode = MCTSNode();
         initialState = BoardState(chess_board, tuple(my_pos), tuple(adv_pos), max_step, True);
-        rootNode.setState(initialState);
+        rootNode.setState(deepcopy(initialState));
         curNode = rootNode;
         uctHelper = UCT();
-        result = self.randomSimulation(deepcopy(initialState)); 
+        result = self.randomSimulation(curNode.getState()); 
         print(result);
         
         # while((time.time() * 1000) < startTime + timelimit):
@@ -331,7 +329,7 @@ class StudentAgent(Agent):
 
         print(tracemalloc.get_traced_memory());
         tracemalloc.stop();
-        print((time.time() * 1000) - startTime);
+        #print((time.time() * 1000) - startTime);
         # dummy return
         #return tree.best_move()
         return my_pos, self.dir_map["u"]
@@ -342,9 +340,9 @@ class StudentAgent(Agent):
             result = state.endCheck();
             print("Result of endCheck is " + str(result));
             counter = counter + 1;
-            print(counter);
+            #print(counter);
             if(result == -1):
-                print("simulating a move...");
+                # print("simulating a move...");
                 # This is not the end, need to do another random move.
                 state.simulateRandomAction();
                 continue;
