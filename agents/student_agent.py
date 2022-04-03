@@ -14,13 +14,14 @@ import sys
 import tracemalloc;
 
 class BoardState:
-        def __init__(self, chess_board, my_pos, adv_pos, max_step):
+        def __init__(self, chess_board, my_pos, adv_pos, max_step, myTurn):
             self.board = deepcopy(chess_board); #Deepcopy may not be needed? ***
             self.myPosition = my_pos;
             self.advPosition = adv_pos;
             self.maxStep = max_step;
             self.board_size = len(chess_board); # The 'M' value of the board.
             self.moves = ((-1, 0), (0, 1), (1, 0), (0, -1));
+            self.myTurn = myTurn; # true if it is this agent's turn, false otherwise
 
         def getBoard(self):
             return self.board;
@@ -43,40 +44,81 @@ class BoardState:
             self.advPosition = adv_pos;
             self.maxStep = max_step;
 
-        #Definitely not done (lol). Need to make it so that it will alternate between 'myPosition' and 'advPosition' (add fields to BoardState), and need to actually put the changes on the board (instead of jut calculating the position)
         def simulateRandomAction(self):
-            steps = np.random.randint(0, self.maxStep + 1)
-            ori_pos = deepcopy(self.myPosition)
-            # Random Walk
-            for _ in range(steps):
-                r, c = self.myPosition;
-                dir = np.random.randint(0, 4)
-                m_r, m_c = self.moves[dir]
-                self.myPosition = (r + m_r, c + m_c)
+            if(self.myTurn):
+                ori_pos = deepcopy(self.myPosition)
+                steps = np.random.randint(0, self.maxStep + 1)
 
-                # Special Case enclosed by Adversary
-                k = 0
-                while self.board[r, c, dir] or self.myPosition == self.advPosition:
-                    k += 1
-                    if k > 300:
-                        break
+                # Random Walk
+                for _ in range(steps):
+                    r, c = self.myPosition;
                     dir = np.random.randint(0, 4)
                     m_r, m_c = self.moves[dir]
                     self.myPosition = (r + m_r, c + m_c)
 
-                if k > 50: #Was 300, but want to be fast. Tune this later and see the effect ***
-                    self.myPosition = ori_pos
-                    break
+                    # Special Case enclosed by Adversary
+                    k = 0
+                    while self.board[r, c, dir] or self.myPosition == self.advPosition:
+                        k += 1
+                        if k > 300:
+                            break
+                        dir = np.random.randint(0, 4)
+                        m_r, m_c = self.moves[dir]
+                        self.myPosition = (r + m_r, c + m_c)
 
-            # Put Barrier
-            dir = np.random.randint(0, 4)
-            r, c = self.myPosition
-            while self.board[r, c, dir]:
+                    if k > 300: #Is 300, but want to be fast. Tune this later 
+                        print(k);
+                        self.myPosition = ori_pos
+                        break
+
+                # Put Barrier
                 dir = np.random.randint(0, 4)
-            
-            # Here, still need to then change the board according to the move. See "set_barrier" function?
+                r, c = self.myPosition
+                print(self.board[r,c, 0]);
+                print(self.board[r,c,1]);
+                print(self.board[r,c,2]);
+                print(self.board[r,c,3]);
+                while self.board[r, c, dir]:
+                    dir = np.random.randint(0, 4)
+                    #print("Barrier repeat my")
+                
+                self.myTurn = False;
+                self.board[r, c, dir] = True;
+            else:
+                steps = np.random.randint(0, self.maxStep + 1)
+                ori_pos = deepcopy(self.advPosition)
+                # Random Walk
+                for _ in range(steps):
+                    r, c = self.advPosition;
+                    dir = np.random.randint(0, 4)
+                    m_r, m_c = self.moves[dir]
+                    self.advPosition = (r + m_r, c + m_c)
 
-            return None; # This function is used when computing random states - we don't need to save anything.
+                    # Special Case enclosed by Adversary
+                    k = 0
+                    while self.board[r, c, dir] or self.myPosition == self.advPosition:
+                        k += 1
+                        if k > 300:
+                            print(k);
+                            break
+                        dir = np.random.randint(0, 4)
+                        m_r, m_c = self.moves[dir]
+                        self.advPosition = (r + m_r, c + m_c)
+
+                    if k > 300: #Was 300, but want to be fast. Tune this later and see the effect ***
+                        self.advPosition = ori_pos
+                        break
+
+                # Put Barrier
+                dir = np.random.randint(0, 4)
+                r, c = self.advPosition
+                while self.board[r, c, dir]:
+                    dir = np.random.randint(0, 4)
+                   #print("Barrier repeat adv")
+                self.myTurn = True;
+                self.board[r, c, dir] = True;
+                
+            return None; # This function is used when computing random states - we don't need to save or return anything.
 
         # Similar to the 'check_endgame()' function from world.py. Returns the amt of points the player has won (0 for loss, 0.5 for tie, 1 for win) or a -1 if it is not the terminal state.
         def endCheck(self):
@@ -260,12 +302,12 @@ class StudentAgent(Agent):
         stateList = [];
         # *** Create a node based on the passed in state, make it the root of the tree
         rootNode = MCTSNode();
-        initialState = BoardState(chess_board, my_pos, adv_pos, max_step);
+        initialState = BoardState(chess_board, tuple(my_pos), tuple(adv_pos), max_step, True);
         rootNode.setState(initialState);
         curNode = rootNode;
         uctHelper = UCT();
-        #result = self.randomSimulation(deepcopy(curNode.state)); 
-        #print(result);
+        result = self.randomSimulation(deepcopy(initialState)); 
+        print(result);
         
         # while((time.time() * 1000) < startTime + timelimit):
         #     #These two lines only here for speed/memory tests
@@ -295,9 +337,14 @@ class StudentAgent(Agent):
         return my_pos, self.dir_map["u"]
     
     def randomSimulation(self, state:BoardState):
+        counter = 0;
         while(True):
-            result = state.endCheck()
+            result = state.endCheck();
+            print("Result of endCheck is " + str(result));
+            counter = counter + 1;
+            print(counter);
             if(result == -1):
+                print("simulating a move...");
                 # This is not the end, need to do another random move.
                 state.simulateRandomAction();
                 continue;
@@ -309,9 +356,8 @@ class StudentAgent(Agent):
 CHECKLIST:
 - Need function to get possible moves (node expansion) 
 - Need a function to properly select a UCT node
-- Need to setup initial tree structure in step(), and should also reorganize helper classes
 - Need a function to update a node's value (backpropagation)
-- Need a function to select a random move and play it on a state (as fast as possible!) - Partially done. Calculates a random move, but need to alternate between player turns + actually put the changes on the board.
+- Need a function to select a random move and play it on a state (as fast as possible!) - Partially done. Calculates a random move, but need to alternate between player turns + actually putting the changes on the board.
 
 - Need a function that will continually do random moves until the end (a random rollout/simulation) - DONE!
 - Need a function to check that a state is terminal (can likely steal from world.py) - DONE!
