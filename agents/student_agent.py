@@ -75,21 +75,21 @@ class BoardState:
                 # Put Barrier
                 dir = np.random.randint(0, 4)
                 r, c = self.myPosition
-                #print("my");
-
                 while self.board[r, c, dir]:
-                    num_barrier = 0
-
-                    for i in range (0, 4):
-                        if self.board[r, c, i]:
-                            num_barrier += 1
-
-                    if num_barrier > 2:
-                        print("Encapsulated!!!!!!!")
-                        break
-
                     dir = np.random.randint(0, 4)
-                    #print("Barrier repeat my")
+                # while self.board[r, c, dir]:
+                #     num_barrier = 0
+
+                #     for i in range (0, 4):
+                #         if self.board[r, c, i]:
+                #             num_barrier += 1
+
+                #     if num_barrier > 2:
+                #         print("Encapsulated!!!!!!!")
+                #         break
+
+                #     dir = np.random.randint(0, 4)
+                #     #print("Barrier repeat my")
 
                 self.myTurn = False;
                 self.board[r, c, dir] = True;
@@ -290,11 +290,9 @@ class UCT:
         highest = None;
         highestVal = -1;
         for child in node.getChildren():
-            if(highest == None):
-                highest = child;
-                highestVal = 9999;
-            
             childVal = UCT.UCTValue(child.getVisitCount(), child.getWinCount(), totalRootVisits)
+            if(childVal == 9999):
+                return child;
             if(childVal > highestVal):
                 highest = child;
                 highestVal = childVal;
