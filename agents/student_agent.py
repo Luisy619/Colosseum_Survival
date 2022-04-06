@@ -78,7 +78,7 @@ class BoardState:
                 #print("my");
                 while self.board[r, c, dir]:
                     dir = np.random.randint(0, 4)
-                    print("Barrier repeat my")
+                    #print("Barrier repeat my")
                 
                 self.myTurn = False;
                 self.board[r, c, dir] = True;
@@ -116,7 +116,7 @@ class BoardState:
                 #print("adv");
                 while self.board[r, c, dir]:
                     dir = np.random.randint(0, 4)
-                    print("Barrier repeat adv") #*******************************************************
+                    #print("Barrier repeat adv") #*******************************************************
                 self.myTurn = True;
                 self.board[r, c, dir] = True;
                 move = self.moves[dir]
@@ -177,6 +177,7 @@ class MCTSNode:
         self.winCount = 0;
         self.childList = [];
         self.direction = None;
+        self.isTerminal = False;
 
     def setParent(self, parent):
         self.parent = parent;
@@ -187,6 +188,9 @@ class MCTSNode:
     def hasParent(self):
         return self.parent != None;
     
+    def isNodeTerminal(self):
+        return self.isTerminal;
+
     def setDirection(self, inputDirection):
         self.direction = inputDirection;
 
@@ -245,9 +249,10 @@ class MCTSNode:
     def expandNode(self):
         # Get all possible states, and add them to this node's childList. *** This will likely be too expensive. Edit to be a subset of states (proportional to max_step).
         max_step = self.getState().getMaxStep();
-        copy = deepcopy(self.getState());
-        if(copy.endCheck() != -1):
-            return; #Node is an end state - it has no children.
+        if(self.boardState.endCheck() != -1):
+            self.isTerminal = True;
+            return None; #Node is an end state - it has no children.
+        copy = deepcopy(self.boardState);
 
         # Make an array with max_step slots which contain MCTSNode objects.
         # for max_step, make another boardstate copy, simulate a random move (twice) on it, and use it to create an MCTSNode which is then added to the array
@@ -255,8 +260,8 @@ class MCTSNode:
 
         for i in range(max_step):
             direction = copy.simulateRandomAction();
-            if(copy.endCheck() == -1):
-                copy.simulateRandomAction(); #here.
+            # if(copy.endCheck() == -1): # If we want to "jump" forwards so that each node represents a player move, then uncomment this.
+            #     copy.simulateRandomAction(); #here.
             node = MCTSNode();
             node.setState(copy);
             node.setDirection(direction);
@@ -279,7 +284,7 @@ class UCT:
                 highestVal = 9999;
             
             childVal = UCT.UCTValue(child.getVisitCount(), child.getWinCount(), totalRootVisits)
-            if(childVal >= highestVal):
+            if(childVal > highestVal):
                 highest = child;
                 highestVal = childVal;
 
@@ -289,7 +294,8 @@ class UCT:
     def UCTValue(totalVisits, winCount, rootTotalVisits): 
         if(totalVisits == 0):
             return 9999; #Maybe double check if we can use INTEGER_MAXVAL or something instead, but this should work.
-        return (winCount / totalVisits) + 1.41 * math.sqrt(math.log(rootTotalVisits) /  totalVisits) #The 'c' value (1.41) can and should be tuned later. ***
+        else:
+            return (winCount / totalVisits) + 1.41 * math.sqrt(math.log(rootTotalVisits) /  totalVisits) #The 'c' value (1.41) can and should be tuned later. ***
 
 @register_agent("student_agent")
 class StudentAgent(Agent):
@@ -307,9 +313,10 @@ class StudentAgent(Agent):
             "d": 2,
             "l": 3,
         }
+        self.autoplay = True;
 
     def step(self, chess_board, my_pos, adv_pos, max_step):
-        tracemalloc.start();
+        #tracemalloc.start();
         """
         Implement the step function of your agent here.
         You can use the following variables to access the chess board:
@@ -331,45 +338,46 @@ class StudentAgent(Agent):
         rootNode = MCTSNode();
         initialState = BoardState(chess_board, tuple(my_pos), tuple(adv_pos), max_step, True);
         rootNode.setState(deepcopy(initialState));
-        totalRootVisits = 0; #Maybe change to 1?
+        totalRootVisits = 0; 
         curNode = rootNode;
         # result = self.randomSimulation(curNode.getState()); #Tested extensively. 'randomSimulation' works well.
         # print(result);
     
         counter = 0
         #while((time.time() * 1000) < startTime + timelimit):
-        while(counter < 100):
+        while(counter < 1000):
             #These two lines only here for speed/memory tests
             # copiedState = BoardState(chess_board, my_pos, adv_pos, max_step);
             # stateList.append(copiedState);
 
-            ## Step 1: Select a promising node (should be the root at the start)
-            while (not curNode.isLeaf()): # ***
-                curNode = UCT.findBestUCTNode(curNode, totalRootVisits); # What if this returns 'None'? (not the problem)
+            ## Step 1: Select a promising node by using UCT until we reach a leaf.
+            while (not curNode.isLeaf()): 
+                curNode = UCT.findBestUCTNode(curNode, totalRootVisits); # What if this returns 'None'? *** I don't think it can happen but keep it in mind
             
             ## Step 2: Expand the node   
             curNode.expandNode();
-            # What to do if the above "curNode" was an end-state?
-            curNode = UCT.findBestUCTNode(curNode, totalRootVisits);
-
+            if(not (curNode.isNodeTerminal())):
+                curNode = UCT.findBestUCTNode(curNode, totalRootVisits);
+           
             ##Step 3: Simulate random game
-            result = self.randomSimulation(deepcopy(curNode.getState())); #Will probably infinitely loop for now.
+            result = self.randomSimulation(deepcopy(curNode.getState())); 
             ##Step 4: Backpropagation 
-            while(curNode.hasParent()): # ***
+            while(curNode.hasParent()): 
               curNode.update(result)
               curNode = curNode.getParent()
               if(not curNode.hasParent()):
                   totalRootVisits += 1;
+
             counter += 1;
 
         
-        print(tracemalloc.get_traced_memory());
-        tracemalloc.stop();
-        print((time.time() * 1000) - startTime);
-        # final_move_node = UCT.findBestUCTNode(rootNode, totalRootVisits); #Maybe just pick by visit count.
+        #print(tracemalloc.get_traced_memory());
+        #tracemalloc.stop();
+        #print((time.time() * 1000) - startTime);
+        final_move_node = UCT.findBestUCTNode(rootNode, totalRootVisits); #Maybe just pick by visit count.
         # dummy return
-        return my_pos, self.dir_map["u"]
-        # return final_move_node.getState().getMyPos(), final_move_node.getDirection();
+        #return my_pos, self.dir_map["u"]
+        return final_move_node.getState().getMyPos(), final_move_node.getDirection();
     
     def randomSimulation(self, state:BoardState):
         counter = 0;
