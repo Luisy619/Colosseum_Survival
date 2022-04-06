@@ -84,6 +84,7 @@ class BoardState:
                 self.board[r, c, dir] = True;
                 move = self.moves[dir]
                 self.board[r + move[0], c + move[1], self.opposites[dir]] = True
+                return dir;
             else:
                 steps = np.random.randint(0, self.maxStep + 1)
                 ori_pos = deepcopy(self.advPosition)
@@ -175,6 +176,7 @@ class MCTSNode:
         self.visitCount = 0; 
         self.winCount = 0;
         self.childList = [];
+        self.direction = None;
 
     def setParent(self, parent):
         self.parent = parent;
@@ -185,6 +187,12 @@ class MCTSNode:
     def hasParent(self):
         return self.parent != None;
     
+    def setDirection(self, inputDirection):
+        self.direction = inputDirection;
+
+    def getDirection(self):
+        return self.direction;
+
     def setState(self, state: BoardState):
         self.state = state;
 
@@ -236,22 +244,24 @@ class MCTSNode:
 
     def expandNode(self):
         # Get all possible states, and add them to this node's childList. *** This will likely be too expensive. Edit to be a subset of states (proportional to max_step).
+        max_step = self.getState().getMaxStep();
+        copy = deepcopy(self.getState());
+        
+        # Make an array with max_step slots which contain MCTSNode objects.
+        # for max_step, make another boardstate copy, simulate a random move (twice) on it, and use it to create an MCTSNode which is then added to the array
+        # Then, simply return the array.
+
+        for i in range(max_step):
+            direction = copy.simulateRandomAction();
+            copy.simulateRandomAction();
+            node = MCTSNode();
+            node.setState(copy);
+            node.setDirection(direction);
+            self.addChildNode(node);
+            copy = deepcopy(self.getState());
+        
         return None;
-
-# class State:
-    
-#     def __init__(self, boardState):
-#         self.boardState = boardState
-#         self.visitCount = 0; #Could put these two in 'Node' Instead, and have just a 'board state'
-#         self.winCount = 0;
-
-#     def getAllStates(self):
-#         # Get all possible moves, and return them in a list of States. *** This might end up being very expensive. Edit to be a subset of states if need be.
-#         return None;
-
-#     def randomMove(self):
-#         # Uses BoardState to figure out a random move. Can likely snag random agent code to do this!
-#         return None;
+        
 
 class UCT:
 
@@ -294,11 +304,6 @@ class StudentAgent(Agent):
             "l": 3,
         }
 
-    def valid_move(cur_pos, x, y, dir, max_x, max_y):
-        #Check for Board Dimension & Blockage
-        return (0 <= x < max_x and 0 <= y < max_y and not dir.barrier)
-
-    #@profile
     def step(self, chess_board, my_pos, adv_pos, max_step):
         tracemalloc.start();
         """
@@ -315,10 +320,9 @@ class StudentAgent(Agent):
 
         Please check the sample implementation in agents/random_agent.py or agents/human_agent.py for more details.
         """
-        init_pos = my_pos
         timelimit = 1750; # Tried 2000ms (2s) but results came out 2.3s so this seems to be about as high as we can safely go.
         startTime = time.time() * 1000;
-        stateList = [];
+        #stateList = [];
         # *** Create a node based on the passed in state, make it the root of the tree
         rootNode = MCTSNode();
         initialState = BoardState(chess_board, tuple(my_pos), tuple(adv_pos), max_step, True);
@@ -328,34 +332,36 @@ class StudentAgent(Agent):
         result = self.randomSimulation(curNode.getState()); 
         print(result);
         
-        # while((time.time() * 1000) < startTime + timelimit):
-        #     #These two lines only here for speed/memory tests
-        #     copiedState = BoardState(chess_board, my_pos, adv_pos, max_step);
-        #     stateList.append(copiedState);
+        while((time.time() * 1000) < startTime + timelimit):
+            #These two lines only here for speed/memory tests
+            # copiedState = BoardState(chess_board, my_pos, adv_pos, max_step);
+            # stateList.append(copiedState);
 
-        #     ## Step 1: Select a promising node (should be the root at the start)
-        #     while (not curNode.isLeaf()):
-                # curNode = UCT.findBestUCTNode(curNode, totalRootVisits); # What if this returns 'None'?
+            ## Step 1: Select a promising node (should be the root at the start)
+            while (not curNode.isLeaf()):
+                curNode = UCT.findBestUCTNode(curNode, totalRootVisits); # What if this returns 'None'?
             
-        #     ## Step 2: Expand the node   
-        #     curNode.expandNode();
-        #     curNode = UCT.findBestUCTNode(curNode, totalRootVisits);
+            ## Step 2: Expand the node   
+            curNode.expandNode();
+            curNode = UCT.findBestUCTNode(curNode, totalRootVisits);
 
-        #     ##Step 3: Simulate random game
-        #     result = self.randomSimulation(deepcopy(curNode.getState())); #Will probably infinitely loop for now.
-        #     ##Step 4: Backpropagation 
-        #     while curNode.hasParent():
-        #       curNode.update(result)
-        #       curNode = curNode.getParent()
-        #       if(not curNode.hasParent()):
-        #           totalRootVisits += 1;
+            ##Step 3: Simulate random game
+            result = self.randomSimulation(deepcopy(curNode.getState())); #Will probably infinitely loop for now.
+            ##Step 4: Backpropagation 
+            while(curNode.hasParent()):
+              curNode.update(result)
+              curNode = curNode.getParent()
+              if(not curNode.hasParent()):
+                  totalRootVisits += 1;
 
+        
         print(tracemalloc.get_traced_memory());
         tracemalloc.stop();
-        #print((time.time() * 1000) - startTime);
+        print((time.time() * 1000) - startTime);
+        final_move_node = UCT.findBestUCTNode(rootNode, totalRootVisits); #Maybe just pick by visit count.
         # dummy return
-        #return tree.best_move()
-        return my_pos, self.dir_map["u"]
+        #return my_pos, self.dir_map["u"]
+        return final_move_node.getState().getMyPos(), final_move_node.getDirection();
     
     def randomSimulation(self, state:BoardState):
         counter = 0;
