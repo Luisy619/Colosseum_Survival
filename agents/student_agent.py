@@ -76,10 +76,21 @@ class BoardState:
                 dir = np.random.randint(0, 4)
                 r, c = self.myPosition
                 #print("my");
+
                 while self.board[r, c, dir]:
+                    num_barrier = 0
+
+                    for i in range (0, 4):
+                        if self.board[r, c, i]:
+                            num_barrier += 1
+
+                    if num_barrier > 2:
+                        print("Encapsulated!!!!!!!")
+                        break
+
                     dir = np.random.randint(0, 4)
                     #print("Barrier repeat my")
-                
+
                 self.myTurn = False;
                 self.board[r, c, dir] = True;
                 move = self.moves[dir]
