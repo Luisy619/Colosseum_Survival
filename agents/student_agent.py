@@ -78,7 +78,7 @@ class BoardState:
                 #print("my");
                 while self.board[r, c, dir]:
                     dir = np.random.randint(0, 4)
-                    #print("Barrier repeat my")
+                    print("Barrier repeat my")
                 
                 self.myTurn = False;
                 self.board[r, c, dir] = True;
@@ -246,18 +246,21 @@ class MCTSNode:
         # Get all possible states, and add them to this node's childList. *** This will likely be too expensive. Edit to be a subset of states (proportional to max_step).
         max_step = self.getState().getMaxStep();
         copy = deepcopy(self.getState());
-        
+        if(copy.endCheck() != -1):
+            return; #Node is an end state - it has no children.
+
         # Make an array with max_step slots which contain MCTSNode objects.
         # for max_step, make another boardstate copy, simulate a random move (twice) on it, and use it to create an MCTSNode which is then added to the array
         # Then, simply return the array.
 
         for i in range(max_step):
-            # May be getting stuck because it's trying to do a random action when the game has already ended.
             direction = copy.simulateRandomAction();
-            copy.simulateRandomAction(); #here.
+            if(copy.endCheck() == -1):
+                copy.simulateRandomAction(); #here.
             node = MCTSNode();
             node.setState(copy);
             node.setDirection(direction);
+            node.setParent(self);
             self.addChildNode(node);
             copy = deepcopy(self.getState());
         
@@ -330,8 +333,8 @@ class StudentAgent(Agent):
         rootNode.setState(deepcopy(initialState));
         totalRootVisits = 0; #Maybe change to 1?
         curNode = rootNode;
-        #result = self.randomSimulation(curNode.getState()); 
-        #print(result);
+        # result = self.randomSimulation(curNode.getState()); #Tested extensively. 'randomSimulation' works well.
+        # print(result);
     
         counter = 0
         #while((time.time() * 1000) < startTime + timelimit):
@@ -346,6 +349,7 @@ class StudentAgent(Agent):
             
             ## Step 2: Expand the node   
             curNode.expandNode();
+            # What to do if the above "curNode" was an end-state?
             curNode = UCT.findBestUCTNode(curNode, totalRootVisits);
 
             ##Step 3: Simulate random game
@@ -362,10 +366,10 @@ class StudentAgent(Agent):
         print(tracemalloc.get_traced_memory());
         tracemalloc.stop();
         print((time.time() * 1000) - startTime);
-        final_move_node = UCT.findBestUCTNode(rootNode, totalRootVisits); #Maybe just pick by visit count.
+        # final_move_node = UCT.findBestUCTNode(rootNode, totalRootVisits); #Maybe just pick by visit count.
         # dummy return
-        # return my_pos, self.dir_map["u"]
-        return final_move_node.getState().getMyPos(), final_move_node.getDirection();
+        return my_pos, self.dir_map["u"]
+        # return final_move_node.getState().getMyPos(), final_move_node.getDirection();
     
     def randomSimulation(self, state:BoardState):
         counter = 0;
@@ -381,22 +385,3 @@ class StudentAgent(Agent):
                 continue;
             else:
                 return result;
-
-
-"""
-CHECKLIST:
-- Need function to get possible moves (node expansion) 
-
-- Need a function to properly select a UCT node - DONE! (almost certainly needs testing though)
-- Need a function to update a node's value (backpropagation) - DONE!
-- Need a function to select a random move and play it on a state (as fast as possible!) - DONE!
-- Need a function that will continually do random moves until the end (a random rollout/simulation) - DONE!
-- Need a function to check that a state is terminal (can likely steal from world.py) - DONE!
-- Need a function to evaluate a node's value given a state. - DONE! (review it tho)
-- Need a function to check that a given state in the tree is a leaf - DONE!
-
-MCTS:
-- Need a way to do several random simulations
-- Need a tree policy (UCT) and a leaf/default policy (Look-Ahead Tree, will likely be random)
-  Q*(s,a,h) = E[R(s,a) + βV*(T(s,a),h-1)]
-"""
