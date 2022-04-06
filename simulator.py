@@ -84,6 +84,7 @@ class Simulator:
         self.reset(swap_players=swap_players, board_size=board_size)
         is_end, p0_score, p1_score = self.world.step()
         while not is_end:
+            print("Running a step");
             is_end, p0_score, p1_score = self.world.step()
         logger.info(
             f"Run finished. Player {PLAYER_1_NAME}: {p0_score}, Player {PLAYER_2_NAME}: {p1_score}"
