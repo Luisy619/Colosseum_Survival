@@ -13,6 +13,7 @@ import random
 import numpy as np
 import sys
 import tracemalloc
+from datetime import datetime, timedelta;
 
 class BoardState:
         def __init__(self, chess_board, my_pos, adv_pos, max_step, myTurn):
@@ -359,8 +360,9 @@ class StudentAgent(Agent):
 
         Please check the sample implementation in agents/random_agent.py or agents/human_agent.py for more details.
         """
+        startTime = datetime.now();
+        #print(startTime);
         timelimit = 1750 # Tried 2000ms (2s) but results came out 2.3s so this seems to be about as high as we can safely go.
-        startTime = time.time() * 1000
         #stateList = []
         # *** Create a node based on the passed in state, make it the root of the tree
         rootNode = MCTSNode()
@@ -373,7 +375,7 @@ class StudentAgent(Agent):
     
         counter = 0
         #while((time.time() * 1000) < startTime + timelimit):
-        while(counter < 1000):
+        while(datetime.now() < (startTime + timedelta(seconds=1.9))):
             #These two lines only here for speed/memory tests
             # copiedState = BoardState(chess_board, my_pos, adv_pos, max_step)
             # stateList.append(copiedState)
@@ -383,13 +385,13 @@ class StudentAgent(Agent):
                 curNode = UCT.findBestUCTNode(curNode, totalRootVisits) # What if this returns 'None'? *** I don't think it can happen but keep it in mind
             
             ## Step 2: Expand the node   
-            curNode.expandNode()
+            curNode.expandNode()   #Expensive
 
             if(not (curNode.isNodeTerminal())):
                 curNode = UCT.findBestUCTNode(curNode, totalRootVisits)
            
             ##Step 3: Simulate random game
-            result = self.randomSimulation(deepcopy(curNode.getState()))
+            result = self.randomSimulation(deepcopy(curNode.getState()))   #Expensive
 
             ##Step 4: Backpropagation 
             while(curNode.hasParent()): 
@@ -399,7 +401,7 @@ class StudentAgent(Agent):
               if(not curNode.hasParent()):
                   totalRootVisits += 1
 
-            counter += 1
+            #counter += 1
         
         #print(tracemalloc.get_traced_memory())
         #tracemalloc.stop()
@@ -407,6 +409,7 @@ class StudentAgent(Agent):
         final_move_node = UCT.findBestUCTNode(rootNode, totalRootVisits) #Maybe just pick by visit count.
         # dummy return
         #return my_pos, self.dir_map["u"]
+       # print(datetime.now());
         return final_move_node.getState().getMyPos(), final_move_node.getDirection()
     
     def randomSimulation(self, state:BoardState):
